@@ -52,7 +52,9 @@ const estimateFee = async (req, res, next) => {
     const tx = await tronWeb.transactionBuilder.sendTrx(to, amountSun, from)
     const rawSize = BigInt(Buffer.from(tx.raw_data_hex, 'hex').length)
     const signatures = Math.max(1, Number(signatureCount) || 1)
-    const txSize = rawSize + BigInt(65 * signatures)
+    const txSize = rawSize + BigInt(65 * signatures)*1n // each signature adds 65 bytes, 
+    // hex encoded 
+    // если умножить на 2 то ответ ближе креальному размеру в сети
 
     const freeLimit = toBigInt(resources.freeNetLimit)
     const freeUsed = toBigInt(resources.freeNetUsed)
