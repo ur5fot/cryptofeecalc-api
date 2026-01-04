@@ -16,6 +16,22 @@ The API uses TronWeb and a TronGrid endpoint.
 - `TRON_GRID_ENDPOINT` (default: `https://nile.trongrid.io`)
 - `TRON_GRID_API_KEY` (required for TronGrid)
 
+### Worker (Cloudflare)
+
+The Worker entry lives in `src/worker.js`.
+
+Run locally:
+```bash
+npm run worker:dev
+```
+
+Deploy:
+```bash
+npm run worker:deploy
+```
+
+Note: `wrangler.jsonc` includes `compatibility_flags: ["nodejs_compat"]` to support TronWeb.
+
 ## Endpoints
 
 ### GET /health
