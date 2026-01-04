@@ -6,7 +6,6 @@ Minimal TRON fee estimation API (TRX transfers).
 
 ```bash
 npm install
-npm run dev
 ```
 
 ### Environment
@@ -31,6 +30,13 @@ npm run worker:deploy
 ```
 
 Note: `wrangler.jsonc` includes `compatibility_flags: ["nodejs_compat"]` to support TronWeb.
+
+### Local Express (optional)
+
+If you want to run the Node/Express version locally:
+```bash
+npm run dev
+```
 
 ## Endpoints
 
