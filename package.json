@@ -4,14 +4,10 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "dev": "node src/index.js",
-    "start": "node src/index.js",
-    "worker:dev": "wrangler dev",
-    "worker:deploy": "wrangler deploy"
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
     "tronweb": "^6.1.1"
   },
   "devDependencies": {
