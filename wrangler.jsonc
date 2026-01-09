@@ -10,5 +10,17 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
+  },
+  "env": {
+    "dev": {
+      "name": "cryptofeecalc-api-dev",
+      "vars": {
+      }
+    },
+    "prod": {
+        "name": "cryptofeecalc-api",
+        "vars": {
+        }
+      }
   }
 }

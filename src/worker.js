@@ -33,7 +33,7 @@ const jsonResponse = (data, status = 200, request = null) => {
 
 const initTronWeb = (env) =>
   new TronWeb({
-    fullHost: env.TRON_GRID_ENDPOINT || 'https://nile.trongrid.io',
+    fullHost: env.TRON_GRID_ENDPOINT,
     headers: env.TRON_GRID_API_KEY ? { 'TRON-PRO-API-KEY': env.TRON_GRID_API_KEY } : {}
   })
 
