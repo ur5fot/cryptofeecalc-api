@@ -1,19 +1,20 @@
 import { TronWeb } from 'tronweb'
+import type { EstimateRequest, EstimateResponse, ErrorResponse, Env } from './types'
 
 // Configuration
 const ALLOWED_ORIGINS = [
   'https://cryptofeecalc.com',
   'https://www.cryptofeecalc.com',
   'http://localhost:3000' // для локальной разработки
-]
+] as const
 
 const MAX_SIGNATURE_COUNT = 10
 const SIGNATURE_SIZE_BYTES = 65
 
 // Utility functions
-const getOrigin = (request) => request.headers.get('Origin')
+const getOrigin = (request: any) => request.headers.get('Origin')
 
-const getCorsHeaders = (origin) => {
+const getCorsHeaders = (origin:any) => {
   const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
@@ -22,7 +23,7 @@ const getCorsHeaders = (origin) => {
   }
 }
 
-const jsonResponse = (data, status = 200, request = null) => {
+const jsonResponse = (data: any, status = 200, request: Request | null = null) => {
   const headers = {
     'Content-Type': 'application/json',
     ...(request ? getCorsHeaders(getOrigin(request)) : {})
@@ -31,18 +32,18 @@ const jsonResponse = (data, status = 200, request = null) => {
   return new Response(JSON.stringify(data), { status, headers })
 }
 
-const initTronWeb = (env) =>
+const initTronWeb = (env: Env) =>
   new TronWeb({
     fullHost: env.TRON_GRID_ENDPOINT,
     headers: env.TRON_GRID_API_KEY ? { 'TRON-PRO-API-KEY': env.TRON_GRID_API_KEY } : {}
   })
 
-const getParamValue = (params, key, fallback) => {
+const getParamValue = (params: any[], key: string, fallback: any) => {
   const match = params.find((param) => param.key === key)
   return match ? match.value : fallback
 }
 
-const toBigInt = (value) => {
+const toBigInt = (value: number | string) => {
   try {
     return BigInt(value || 0)
   } catch {
@@ -50,10 +51,10 @@ const toBigInt = (value) => {
   }
 }
 
-const safeDiff = (value) => (value < 0n ? 0n : value)
+const safeDiff = (value: bigint) => (value < 0n ? 0n : value)
 
 // Validation
-const validateEstimateRequest = (body) => {
+const validateEstimateRequest = (body: EstimateRequest) => {
   const { chain, asset, amount, from, to, signatureCount } = body || {}
 
   if (!chain || chain.toLowerCase() !== 'tron') {
@@ -69,7 +70,7 @@ const validateEstimateRequest = (body) => {
   }
 
   // Validate amount format
-  if (!/^\d+\.?\d*$/.test(amount) || parseFloat(amount) <= 0) {
+  if (!/^\d+\.?\d*$/.test(amount.toString()) || parseFloat(amount.toString()) <= 0) {
     return { valid: false, error: 'Invalid amount format. Must be a positive number.' }
   }
 
@@ -95,7 +96,7 @@ const validateEstimateRequest = (body) => {
 }
 
 // Core estimation logic
-const estimateTrxFee = async (tronWeb, body) => {
+const estimateTrxFee = async (tronWeb: TronWeb, body: any) => {
   const validation = validateEstimateRequest(body)
   if (!validation.valid) {
     return { error: validation.error }
@@ -121,7 +122,7 @@ const estimateTrxFee = async (tronWeb, body) => {
       )
     )
 
-    const tx = await tronWeb.transactionBuilder.sendTrx(to, amountSun, from)
+    const tx = await tronWeb.transactionBuilder.sendTrx(to, +amountSun, from)
     const rawSize = BigInt(Math.ceil(tx.raw_data_hex.length / 2))
     const signatures = Math.max(1, Number(signatureCount) || 1)
     const txSize = rawSize + BigInt(SIGNATURE_SIZE_BYTES * signatures)
@@ -166,7 +167,7 @@ const estimateTrxFee = async (tronWeb, body) => {
 
 // Main worker handler
 export default {
-  async fetch(request, env) {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
     const origin = getOrigin(request)
 
