@@ -1,6 +1,13 @@
 # CryptoFeeCalc API
 
-Minimal TRON fee estimation API (TRX transfers).
+TRON fee estimation API built with Cloudflare Workers and TypeScript.
+
+## Tech Stack
+
+- **Runtime**: Cloudflare Workers (Edge)
+- **Language**: TypeScript
+- **Blockchain**: TronWeb ^6.1.1
+- **Package Manager**: npm
 
 ## Setup
 
@@ -8,71 +15,97 @@ Minimal TRON fee estimation API (TRX transfers).
 npm install
 ```
 
-### Environment
+### Environment Variables
 
-The API uses TronWeb and a TronGrid endpoint.
+Create `.dev.vars` file for local development:
 
-- `TRON_GRID_ENDPOINT` (default: `https://nile.trongrid.io`)
-- `TRON_GRID_API_KEY` (required for TronGrid)
+```env
+TRON_GRID_API_KEY=your_api_key
+TRON_GRID_ENDPOINT=https://api.trongrid.io
+```
 
-### Worker (Cloudflare)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TRON_GRID_ENDPOINT` | TronGrid API endpoint | `https://api.trongrid.io` |
+| `TRON_GRID_API_KEY` | TronGrid API key (required) | — |
 
-The Worker entry lives in `src/worker.js`.
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start local development server (Wrangler) |
+| `npm run type-check` | Run TypeScript type checking |
+| `npm run deploy:dev` | Deploy to dev environment |
+| `npm run deploy:prod` | Deploy to production |
+| `npm run sync-types` | Sync types to frontend project |
+
+## Development
 
 Run locally:
-```bash
-npm run worker:dev
-```
-
-Deploy:
-```bash
-npm run worker:deploy
-```
-
-Note: `wrangler.jsonc` includes `compatibility_flags: ["nodejs_compat"]` to support TronWeb.
-
-### Local Express (optional)
-
-If you want to run the Node/Express version locally:
 ```bash
 npm run dev
 ```
 
-## Endpoints
+The API will be available at `http://localhost:8787`.
+
+### Type Sync
+
+Types are automatically synced to the frontend project on every commit via husky pre-commit hook. To manually sync:
+
+```bash
+npm run sync-types
+```
+
+This copies `src/types.ts` to `../CryptoFeeCalc.com/types/api.ts`.
+
+## API Endpoints
 
 ### GET /health
 
-Response:
+Health check endpoint.
+
+**Response:**
 ```json
 { "status": "ok" }
 ```
 
 ### POST /api/estimate
 
-Request:
+Estimate TRX transfer fee.
+
+**Request:**
 ```json
 {
   "chain": "tron",
   "asset": "TRX",
-  "amount": "10",
-  "from": "T...",
-  "to": "T...",
+  "amount": "100",
+  "from": "TGrzqMjhZH85X8q3EkUfFdXUB3zSW8oDH7",
+  "to": "TYukBQZ2XXCcRCReAUguyXncCWNY9CEiDQ",
   "signatureCount": 1
 }
 ```
 
-Response:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `chain` | string | Yes | Must be `"tron"` |
+| `asset` | string | Yes | Must be `"TRX"` |
+| `amount` | string | Yes | Amount in TRX (e.g., `"100"`) |
+| `from` | string | Yes | Sender TRON address |
+| `to` | string | Yes | Recipient TRON address |
+| `signatureCount` | number | No | Number of signatures (1-10, default: 1) |
+
+**Success Response (200):**
 ```json
 {
   "chain": "tron",
   "asset": "TRX",
-  "amount": "10",
-  "amountSun": "10000000",
-  "from": "T...",
-  "to": "T...",
+  "amount": "100",
+  "amountSun": "100000000",
+  "from": "TGrzqMjhZH85X8q3EkUfFdXUB3zSW8oDH7",
+  "to": "TYukBQZ2XXCcRCReAUguyXncCWNY9CEiDQ",
   "bandwidth": {
     "available": "600",
-    "usedBytes": "199",
+    "usedBytes": "264",
     "priceSunPerByte": "1000",
     "burnSun": "0"
   },
@@ -82,17 +115,123 @@ Response:
 }
 ```
 
-## How the estimate works
+| Field | Type | Description |
+|-------|------|-------------|
+| `amount` | string | Original amount in TRX |
+| `amountSun` | string | Amount in Sun (1 TRX = 1,000,000 Sun) |
+| `bandwidth.available` | string | Available bandwidth for sender |
+| `bandwidth.usedBytes` | string | Estimated transaction size in bytes |
+| `bandwidth.priceSunPerByte` | string | Current bandwidth price |
+| `bandwidth.burnSun` | string | TRX burned for bandwidth (if insufficient) |
+| `createAccountFeeSun` | string | Fee if recipient account doesn't exist |
+| `totalFeeSun` | string | Total fee in Sun |
+| `totalFeeTrx` | number | Total fee in TRX |
 
-1) Builds a TRX transfer transaction with TronWeb to get `raw_data_hex`.
-2) Estimates total size as `raw_data` bytes + `65 * signatureCount`.
-3) Gets account resources (`Bandwidth`) for the sender.
-4) Gets chain parameters (Bandwidth price and create account fee).
-5) Calculates burned TRX if Bandwidth is insufficient.
-6) Adds create account fee if the recipient does not exist.
+**Error Response (400):**
+```json
+{
+  "error": "Invalid from address."
+}
+```
+
+## How Fee Estimation Works
+
+1. **Build Transaction**: Creates a TRX transfer transaction with TronWeb to get `raw_data_hex`
+2. **Calculate Size**: Estimates total size as `raw_data bytes + (65 × signatureCount)`
+3. **Get Resources**: Fetches sender's available bandwidth (free + staked)
+4. **Get Chain Params**: Retrieves current bandwidth price and account creation fee
+5. **Calculate Bandwidth Burn**: If bandwidth is insufficient, calculates TRX to burn
+6. **Add Account Fee**: If recipient doesn't exist, adds account creation fee
+7. **Return Total**: Returns total fee breakdown
+
+## CORS Configuration
+
+Allowed origins:
+- `https://cryptofeecalc.com`
+- `https://www.cryptofeecalc.com`
+- `http://localhost:3000` (development)
+
+## Deployment
+
+### Dev Environment
+```bash
+npm run deploy:dev
+```
+Deploys to `cryptofeecalc-api-dev` worker.
+
+### Production
+```bash
+npm run deploy:prod
+```
+Deploys to `cryptofeecalc-api` worker.
+
+### Environment Secrets
+
+Set secrets via Wrangler:
+```bash
+wrangler secret put TRON_GRID_API_KEY --env prod
+wrangler secret put TRON_GRID_ENDPOINT --env prod
+```
+
+## Project Structure
+
+```
+cryptofeecalc-api/
+├── src/
+│   ├── worker.ts      # Main Cloudflare Worker handler
+│   └── types.ts       # TypeScript type definitions
+├── scripts/
+│   └── sync-types.sh  # Script to sync types to frontend
+├── .husky/
+│   └── pre-commit     # Auto-sync types on commit
+├── wrangler.jsonc     # Cloudflare Workers configuration
+├── tsconfig.json      # TypeScript configuration
+├── package.json
+└── README.md
+```
 
 ## Limitations
 
-- Only `chain=tron` and `asset=TRX` are supported right now.
-- If a wallet adds extra fields (e.g., `permissionId` or memo), actual Bandwidth may be higher.
-- For 1:1 accuracy, use a signed transaction and measure its final byte length.
+- Only `chain=tron` and `asset=TRX` are supported
+- Multi-signature wallets: actual bandwidth may vary with additional fields
+- For exact fee, use a signed transaction and measure final byte length
+- `signatureCount` is limited to 1-10
+
+## Type Definitions
+
+Types are defined in `src/types.ts` and shared with the frontend:
+
+```typescript
+interface EstimateRequest {
+  chain: 'tron'
+  asset: 'TRX'
+  amount: string
+  from: string
+  to: string
+  signatureCount?: number
+}
+
+interface EstimateResponse {
+  chain: 'tron'
+  asset: 'TRX'
+  amount: string
+  amountSun: string
+  from: string
+  to: string
+  bandwidth: BandwidthInfo
+  createAccountFeeSun: string
+  totalFeeSun: string
+  totalFeeTrx: number
+}
+
+interface BandwidthInfo {
+  available: string
+  usedBytes: string
+  priceSunPerByte: string
+  burnSun: string
+}
+```
+
+## License
+
+Private
