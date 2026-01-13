@@ -1,0 +1,3 @@
+#!/bin/sh
+npm run sync-types
+echo "⚠️  Don't forget to commit types/api.ts in frontend repo!"

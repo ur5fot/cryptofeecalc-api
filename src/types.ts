@@ -14,6 +14,7 @@ export interface BandwidthInfo {
     burnSun: string
 }
 
+
 export interface EstimateResponse {
     chain: 'tron'
     asset: 'TRX'
