@@ -5,10 +5,22 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "cryptofeecalc-api",
-  "main": "src/worker.js",
+  "main": "src/worker.ts",
   "compatibility_date": "2026-01-03",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
+  },
+  "env": {
+    "dev": {
+      "name": "cryptofeecalc-api-dev",
+      "vars": {
+      }
+    },
+    "prod": {
+        "name": "cryptofeecalc-api",
+        "vars": {
+        }
+      }
   }
 }
