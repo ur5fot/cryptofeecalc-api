@@ -1,5 +1,6 @@
 import { TronWeb } from 'tronweb'
 import type { EstimateRequest, EstimateResponse, ErrorResponse, Env } from './types'
+import { rateLimitMiddleware } from './middleware/rateLimit'
 
 // Configuration
 const ALLOWED_ORIGINS = [
@@ -177,6 +178,24 @@ export default {
         status: 204,
         headers: getCorsHeaders(origin)
       })
+    }
+
+    // Rate limiting check (skip for health endpoint)
+    if (url.pathname !== '/health') {
+      const rateLimitResponse = await rateLimitMiddleware(request, env)
+      if (rateLimitResponse) {
+        // Add CORS headers to rate limit response
+        const headers = new Headers(rateLimitResponse.headers)
+        const corsHeaders = getCorsHeaders(origin)
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+          headers.set(key, value)
+        })
+
+        return new Response(rateLimitResponse.body, {
+          status: rateLimitResponse.status,
+          headers
+        })
+      }
     }
 
     // Health check endpoint
