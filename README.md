@@ -17,17 +17,24 @@ npm install
 
 ### Environment Variables
 
-Create `.dev.vars` file for local development:
+Copy `.env.example` to `.dev.vars` for local development:
 
-```env
-TRON_GRID_API_KEY=your_api_key
-TRON_GRID_ENDPOINT=https://api.trongrid.io
+```bash
+cp .env.example .dev.vars
 ```
+
+Then edit `.dev.vars` and add your actual TRON Grid API key.
+
+**⚠️ Important:** Never commit `.dev.vars` to git! It's already in `.gitignore`.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `TRON_GRID_ENDPOINT` | TronGrid API endpoint | `https://api.trongrid.io` |
 | `TRON_GRID_API_KEY` | TronGrid API key (required) | — |
+| `TRON_GRID_ENDPOINT` | TronGrid API endpoint | `https://api.trongrid.io` |
+| `ALLOWED_ORIGINS` | CORS allowed origins (comma separated) | — |
+| `RATE_LIMIT_PER_MINUTE` | Requests per minute per IP | `10` |
+| `RATE_LIMIT_PER_HOUR` | Requests per hour per IP | `100` |
+| `RATE_LIMIT_BURST` | Burst limit (requests per second) | `3` |
 
 ## Scripts
 
