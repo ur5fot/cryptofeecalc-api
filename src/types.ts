@@ -39,5 +39,7 @@ export interface ErrorResponse {
 export interface Env {
     TRON_GRID_API_KEY: string
     TRON_GRID_ENDPOINT: string
+    RATE_LIMIT_PER_MINUTE?: string
+    RATE_LIMIT_PER_HOUR?: string
     RATE_LIMIT_KV: KVNamespace
 }
