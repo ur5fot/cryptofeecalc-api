@@ -34,7 +34,6 @@ Then edit `.dev.vars` and add your actual TRON Grid API key.
 | `ALLOWED_ORIGINS` | CORS allowed origins (comma separated) | — |
 | `RATE_LIMIT_PER_MINUTE` | Requests per minute per IP | `10` |
 | `RATE_LIMIT_PER_HOUR` | Requests per hour per IP | `100` |
-| `RATE_LIMIT_BURST` | Burst limit (requests per second) | `3` |
 
 ## Scripts
 

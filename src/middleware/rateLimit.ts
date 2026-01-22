@@ -4,10 +4,6 @@
  * Implements two-tier rate limiting:
  * 1. Minute limit: Max 10 requests per minute
  * 2. Hour limit: Max 100 requests per hour
- *
- * Note: Per-second burst limiting is not supported because Cloudflare KV
- * requires minimum TTL of 60 seconds. For sub-minute rate limiting,
- * consider using Durable Objects instead.
  */
 
 interface RateLimitConfig {
@@ -15,11 +11,15 @@ interface RateLimitConfig {
   perHour: number
 }
 
-interface RateLimitResult {
-  allowed: boolean
+interface RateLimitHeaders {
+  limit: number
   remaining: number
   resetAt: number
-  retryAfter?: number
+}
+
+interface RateLimitResult {
+  response: Response | null
+  headers?: RateLimitHeaders
 }
 
 /**
@@ -68,17 +68,17 @@ async function checkLimit(
  * @param request - Incoming request
  * @param env - Cloudflare Worker environment (with RATE_LIMIT_KV)
  * @param config - Optional rate limit configuration
- * @returns Response with 429 status if rate limited, null if allowed
+ * @returns Rate limit response (429) or headers for successful responses
  */
 export async function rateLimitMiddleware(
   request: Request,
   env: { RATE_LIMIT_KV?: KVNamespace },
   config: Partial<RateLimitConfig> = {}
-): Promise<Response | null> {
+): Promise<RateLimitResult> {
   // Skip if KV is not available (development mode)
   if (!env.RATE_LIMIT_KV) {
     console.warn('RATE_LIMIT_KV not configured, skipping rate limiting')
-    return null
+    return { response: null }
   }
 
   const finalConfig = { ...DEFAULT_CONFIG, ...config }
@@ -101,22 +101,24 @@ export async function rateLimitMiddleware(
     const resetAt = Math.floor(now / 60000) * 60 + 60
     const retryAfter = Math.ceil((resetAt * 1000 - now) / 1000)
 
-    return new Response(
-      JSON.stringify({
-        error: 'Rate limit exceeded',
-        message: `Maximum ${finalConfig.perMinute} requests per minute exceeded. Please try again in ${retryAfter} seconds.`
-      }),
-      {
-        status: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-RateLimit-Limit': finalConfig.perMinute.toString(),
-          'X-RateLimit-Remaining': '0',
-          'X-RateLimit-Reset': resetAt.toString(),
-          'Retry-After': retryAfter.toString()
+    return {
+      response: new Response(
+        JSON.stringify({
+          error: 'Rate limit exceeded',
+          message: `Maximum ${finalConfig.perMinute} requests per minute exceeded. Please try again in ${retryAfter} seconds.`
+        }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-RateLimit-Limit': finalConfig.perMinute.toString(),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': resetAt.toString(),
+            'Retry-After': retryAfter.toString()
+          }
         }
-      }
-    )
+      )
+    }
   }
 
   // Check hour limit
@@ -131,26 +133,42 @@ export async function rateLimitMiddleware(
     const resetAt = Math.floor(now / 3600000) * 3600 + 3600
     const retryAfter = Math.ceil((resetAt * 1000 - now) / 1000)
 
-    return new Response(
-      JSON.stringify({
-        error: 'Rate limit exceeded',
-        message: `Maximum ${finalConfig.perHour} requests per hour exceeded. Please try again in ${Math.ceil(retryAfter / 60)} minutes.`
-      }),
-      {
-        status: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-RateLimit-Limit': finalConfig.perHour.toString(),
-          'X-RateLimit-Remaining': '0',
-          'X-RateLimit-Reset': resetAt.toString(),
-          'Retry-After': retryAfter.toString()
+    return {
+      response: new Response(
+        JSON.stringify({
+          error: 'Rate limit exceeded',
+          message: `Maximum ${finalConfig.perHour} requests per hour exceeded. Please try again in ${Math.ceil(retryAfter / 60)} minutes.`
+        }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-RateLimit-Limit': finalConfig.perHour.toString(),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': resetAt.toString(),
+            'Retry-After': retryAfter.toString()
+          }
         }
-      }
-    )
+      )
+    }
   }
 
   // All checks passed - request is allowed
-  return null
+  const minuteRemaining = Math.max(0, finalConfig.perMinute - minuteCheck.count)
+  const hourRemaining = Math.max(0, finalConfig.perHour - hourCheck.count)
+  const minuteResetAt = Math.floor(now / 60000) * 60 + 60
+  const hourResetAt = Math.floor(now / 3600000) * 3600 + 3600
+
+  const minuteRatio = minuteRemaining / finalConfig.perMinute
+  const hourRatio = hourRemaining / finalConfig.perHour
+  const useHour = hourRatio < minuteRatio
+
+  return {
+    response: null,
+    headers: useHour
+      ? { limit: finalConfig.perHour, remaining: hourRemaining, resetAt: hourResetAt }
+      : { limit: finalConfig.perMinute, remaining: minuteRemaining, resetAt: minuteResetAt }
+  }
 }
 
 /**
