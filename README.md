@@ -171,6 +171,8 @@ npm run deploy:prod
 ```
 Deploys to `cryptofeecalc-api` worker.
 
+Note: CI/CD must run `wrangler deploy --env prod` to apply production `env.*.vars`.
+
 ### Environment Secrets
 
 Set secrets via Wrangler:
