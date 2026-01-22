@@ -16,7 +16,11 @@
 	"env": {
 		"dev": {
 			"name": "cryptofeecalc-api-dev",
-			"vars": {},
+			"vars": {
+				"TRON_GRID_ENDPOINT": "https://api.trongrid.io",
+				"RATE_LIMIT_PER_MINUTE": "10",
+				"RATE_LIMIT_PER_HOUR": "100"
+			},
 			"kv_namespaces": [
 				{
 					"binding": "RATE_LIMIT_KV",
@@ -27,7 +31,11 @@
 		},
 		"prod": {
 			"name": "cryptofeecalc-api",
-			"vars": {},
+			"vars": {
+				"TRON_GRID_ENDPOINT": "https://api.trongrid.io",
+				"RATE_LIMIT_PER_MINUTE": "10",
+				"RATE_LIMIT_PER_HOUR": "100"
+			},
 			"kv_namespaces": [
 				{
 					"binding": "RATE_LIMIT_KV",
