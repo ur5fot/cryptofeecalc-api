@@ -15,6 +15,8 @@ TRON fee estimation API built with Cloudflare Workers and TypeScript.
 npm install
 ```
 
+Note: Wrangler v4 requires Node.js 20+.
+
 ### Environment Variables
 
 Copy `.env.example` to `.dev.vars` for local development:
@@ -35,6 +37,22 @@ Then edit `.dev.vars` and add your actual TRON Grid API key.
 | `RATE_LIMIT_PER_MINUTE` | Requests per minute per IP | `10` |
 | `RATE_LIMIT_PER_HOUR` | Requests per hour per IP | `100` |
 
+Notes:
+- `ALLOWED_ORIGINS` is currently hardcoded in `src/worker.ts` (env wiring planned).
+- Production vars live in `wrangler.jsonc` under `env.*.vars` and apply on deploy with `--env`.
+
+## Rate Limiting
+
+Rate limiting uses KV binding `RATE_LIMIT_KV` with per-minute and per-hour limits.
+
+Defaults:
+- 10 requests per minute
+- 100 requests per hour
+
+Responses:
+- 429 includes `X-RateLimit-*` and `Retry-After`.
+- 2xx responses also include `X-RateLimit-*`.
+
 ## Scripts
 
 | Command | Description |
@@ -53,6 +71,11 @@ npm run dev
 ```
 
 The API will be available at `http://localhost:8787`.
+
+## Agent Notes
+
+Project-specific agent guidance: `AGENTS.md`.
+Global session summaries: `../AGENTS.md`.
 
 ### Type Sync
 
@@ -177,6 +200,7 @@ Note: CI/CD must run `wrangler deploy --env prod` to apply production `env.*.var
 
 Set secrets via Wrangler:
 ```bash
+wrangler secret put TRON_GRID_API_KEY --env dev
 wrangler secret put TRON_GRID_API_KEY --env prod
 ```
 
