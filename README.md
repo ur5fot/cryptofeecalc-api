@@ -176,8 +176,9 @@ Deploys to `cryptofeecalc-api` worker.
 Set secrets via Wrangler:
 ```bash
 wrangler secret put TRON_GRID_API_KEY --env prod
-wrangler secret put TRON_GRID_ENDPOINT --env prod
 ```
+
+Non-secret vars are managed in `wrangler.jsonc` under `env.*.vars`.
 
 ## Project Structure
 
