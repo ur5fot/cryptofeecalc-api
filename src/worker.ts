@@ -1,5 +1,6 @@
 import { TronWeb } from 'tronweb'
 import type { EstimateRequest, EstimateResponse, ErrorResponse, Env } from './types'
+import { addRateLimitHeaders, rateLimitMiddleware } from './middleware/rateLimit'
 
 // Configuration
 const ALLOWED_ORIGINS = [
@@ -170,6 +171,9 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
     const origin = getOrigin(request)
+    let rateLimitHeaders:
+      | { limit: number; remaining: number; resetAt: number }
+      | undefined
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
@@ -179,9 +183,45 @@ export default {
       })
     }
 
+    // Rate limiting check (skip for health endpoint)
+    if (url.pathname !== '/health') {
+      const rateLimitResult = await rateLimitMiddleware(request, env)
+      if (rateLimitResult.response) {
+        // Add CORS headers to rate limit response
+        const headers = new Headers(rateLimitResult.response.headers)
+        const corsHeaders = getCorsHeaders(origin)
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+          headers.set(key, value)
+        })
+
+        return new Response(rateLimitResult.response.body, {
+          status: rateLimitResult.response.status,
+          headers
+        })
+      }
+      rateLimitHeaders = rateLimitResult.headers
+    }
+
+    const applyRateLimitHeaders = (response: Response) => {
+      if (!rateLimitHeaders) {
+        return response
+      }
+
+      if (response.status < 200 || response.status >= 300) {
+        return response
+      }
+
+      return addRateLimitHeaders(
+        response,
+        rateLimitHeaders.remaining,
+        rateLimitHeaders.limit,
+        rateLimitHeaders.resetAt
+      )
+    }
+
     // Health check endpoint
     if (url.pathname === '/health' && request.method === 'GET') {
-      return jsonResponse({ status: 'ok' }, 200, request)
+      return applyRateLimitHeaders(jsonResponse({ status: 'ok' }, 200, request))
     }
 
     // Estimate endpoint
@@ -202,7 +242,7 @@ export default {
           return jsonResponse(result, 400, request)
         }
 
-        return jsonResponse(result, 200, request)
+        return applyRateLimitHeaders(jsonResponse(result, 200, request))
       } catch (error) {
         console.error('Unexpected error:', error)
         return jsonResponse({ error: 'Internal server error.' }, 500, request)
