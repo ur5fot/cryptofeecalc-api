@@ -11,6 +11,8 @@ const ALLOWED_ORIGINS = [
 
 const MAX_SIGNATURE_COUNT = 10
 const SIGNATURE_SIZE_BYTES = 65
+const DEFAULT_RATE_LIMIT_PER_MINUTE = 10
+const DEFAULT_RATE_LIMIT_PER_HOUR = 100
 
 // Utility functions
 const getOrigin = (request: any) => request.headers.get('Origin')
@@ -50,6 +52,11 @@ const toBigInt = (value: number | string) => {
   } catch {
     return 0n
   }
+}
+
+const parseRateLimit = (value: string | undefined, fallback: number) => {
+  const parsed = Number.parseInt(value || '', 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
 const safeDiff = (value: bigint) => (value < 0n ? 0n : value)
@@ -185,7 +192,10 @@ export default {
 
     // Rate limiting check (skip for health endpoint)
     if (url.pathname !== '/health') {
-      const rateLimitResult = await rateLimitMiddleware(request, env)
+      const rateLimitResult = await rateLimitMiddleware(request, env, {
+        perMinute: parseRateLimit(env.RATE_LIMIT_PER_MINUTE, DEFAULT_RATE_LIMIT_PER_MINUTE),
+        perHour: parseRateLimit(env.RATE_LIMIT_PER_HOUR, DEFAULT_RATE_LIMIT_PER_HOUR)
+      })
       if (rateLimitResult.response) {
         // Add CORS headers to rate limit response
         const headers = new Headers(rateLimitResult.response.headers)
